@@ -1,0 +1,14 @@
+@import "tailwindcss";
+
+/* index.css */
+@layer utilities {
+  /* اخفاء السكرول بار للمتصفحات (Chrome, Safari, Opera) */
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  /* اخفاء السكرول بار لـ (IE, Edge, Firefox) */
+  .no-scrollbar {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+  }
+}
