@@ -2,26 +2,16 @@ import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
-import { useMutation, useQueryClient, useInfiniteQuery } from '@tanstack/react-query';
-import { useNavigate, Link } from 'react-router-dom';
+import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from '@tanstack/react-query';
+import { useNavigate, Link, useParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { 
   ArrowLeft, Save, Calendar, DollarSign, Package, 
-  Search, CheckCircle, AlertCircle, Layers, Loader2, ChevronDown
+  Search, CheckCircle, AlertCircle, Layers, Loader2, ChevronDown 
 } from 'lucide-react';
 import api from '../../services/api';
 
-
-function useDebounce(value, delay) {
-  const [debouncedValue, setDebouncedValue] = useState(value);
-  useEffect(() => {
-    const handler = setTimeout(() => setDebouncedValue(value), delay);
-    return () => clearTimeout(handler);
-  }, [value, delay]);
-  return debouncedValue;
-}
-
-// --- Validation Schema ---
+// --- Validation Schema (Same as Create) ---
 const schema = yup.object().shape({
   name: yup.string().required('Promotion name is required'),
   description: yup.string().nullable(),
@@ -55,13 +45,23 @@ const schema = yup.object().shape({
   })
 });
 
-export default function CreatePromotion() {
+// --- Debounce Hook ---
+function useDebounce(value, delay) {
+  const [debouncedValue, setDebouncedValue] = useState(value);
+  useEffect(() => {
+    const handler = setTimeout(() => setDebouncedValue(value), delay);
+    return () => clearTimeout(handler);
+  }, [value, delay]);
+  return debouncedValue;
+}
+
+export default function ShowPromotion() {
+  const { id } = useParams(); // Get ID from URL
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   
-  // State for Search
-  const [searchTerm, setSearchTerm] = useState('');
-  const debouncedSearch = useDebounce(searchTerm, 500); // 500ms delay
+  const [productSearch, setProductSearch] = useState('');
+  const debouncedSearch = useDebounce(productSearch, 500);
 
   // --- Form Setup ---
   const { 
@@ -69,11 +69,12 @@ export default function CreatePromotion() {
     handleSubmit, 
     watch, 
     setValue, 
+    reset,
     formState: { errors, isSubmitting } 
   } = useForm({
     resolver: yupResolver(schema),
     defaultValues: {
-      name: '', description: '', status: 'active', scope: 'all_products',
+      name: '', description: '', status: 'draft', scope: 'all_products',
       discount_value: '', products: [], min_price: '', max_price: '', max_qty_per_cart: ''
     }
   });
@@ -81,47 +82,80 @@ export default function CreatePromotion() {
   const scope = watch('scope');
   const selectedProducts = watch('products');
 
-  // --- 1. Fetch Products with Infinite Scroll & Server-Side Search ---
+  // --- 1. Fetch Existing Promotion Details ---
+  const { data: promoData, isLoading: isPromoLoading } = useQuery({
+    queryKey: ['promotion', id],
+    queryFn: async () => {
+      const res = await api.get(`/seller/promotions/${id}`);
+      return res.data;
+    },
+    staleTime: 0, // Always fetch fresh data for edit
+  });
+
+  // --- 2. Populate Form on Data Load ---
+  useEffect(() => {
+    if (promoData?.data) {
+      const p = promoData.data;
+      
+      // Helper to extract YYYY-MM-DD from "YYYY-MM-DD HH:MM"
+      const formatDateForInput = (dateStr) => dateStr ? dateStr.split(' ')[0] : '';
+
+      reset({
+        name: p.name,
+        description: p.description,
+        status: p.status,
+        scope: p.scope,
+        discount_value: p.discount_value,
+        start_date: formatDateForInput(p.start_date),
+        end_date: formatDateForInput(p.end_date),
+        
+        // Flatten Conditions object
+        min_price: p.conditions?.min_price,
+        max_price: p.conditions?.max_price,
+        max_qty_per_cart: p.conditions?.max_qty_per_cart,
+
+        // Map array of Product Objects -> Array of IDs
+        products: p.products ? p.products.map(prod => prod.id) : []
+      });
+    }
+  }, [promoData, reset]);
+
+  // --- 3. Infinite Scroll Products (Same as Create) ---
   const {
-    data,
+    data: productsData,
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
     isLoading: productsLoading
   } = useInfiniteQuery({
-    queryKey: ['seller_products_infinite', debouncedSearch], // Refetch when search changes
+    queryKey: ['seller_products_infinite', debouncedSearch], 
     queryFn: async ({ pageParam = 1 }) => {
       const res = await api.get('/seller/products', { 
-        params: { 
-          page: pageParam, 
-          per_page: 10, // Load 10 items per chunk
-          search: debouncedSearch || undefined // Send search term to backend
-        } 
+        params: { page: pageParam, per_page: 10, search: debouncedSearch || undefined } 
       });
       return res.data;
     },
     getNextPageParam: (lastPage) => {
-      // Determine if there is a next page based on API meta
       const { current_page, last_page } = lastPage.data.meta;
       return current_page < last_page ? current_page + 1 : undefined;
     },
-    enabled: scope === 'selected_products', // Only fetch if needed
+    enabled: scope === 'selected_products',
   });
 
-  // Flatten the pages into a single list of products
-  const productList = data?.pages.flatMap((page) => page.data.items) || [];
+  const productList = productsData?.pages.flatMap((page) => page.data.items) || [];
 
-  // --- Mutation ---
-  const createMutation = useMutation({
-    mutationFn: (data) => api.post('/seller/promotions', data),
+  // --- 4. Update Mutation ---
+  const updateMutation = useMutation({
+    mutationFn: (data) => api.put(`/seller/promotions/${id}`, data),
     onSuccess: () => {
-      toast.success('Promotion created successfully!');
+      toast.success('Promotion updated successfully!');
       queryClient.invalidateQueries(['promotions']);
+      queryClient.invalidateQueries(['promotion', id]);
       navigate('/promotions');
     },
     onError: (err) => {
       console.error(err);
-      toast.error(err.response?.data?.message || 'Failed to create promotion');
+      toast.error(err.response?.data?.message || 'Failed to update promotion');
     }
   });
 
@@ -130,17 +164,23 @@ export default function CreatePromotion() {
       ...data,
       products: data.scope === 'all_products' ? [] : data.products
     };
-    createMutation.mutate(payload);
+    updateMutation.mutate(payload);
   };
 
-  const toggleProduct = (id) => {
+  const toggleProduct = (pid) => {
     const current = selectedProducts || [];
-    if (current.includes(id)) {
-      setValue('products', current.filter(pid => pid !== id), { shouldValidate: true });
+    if (current.includes(pid)) {
+      setValue('products', current.filter(id => id !== pid), { shouldValidate: true });
     } else {
-      setValue('products', [...current, id], { shouldValidate: true });
+      setValue('products', [...current, pid], { shouldValidate: true });
     }
   };
+
+  if (isPromoLoading) return (
+    <div className="flex h-screen items-center justify-center bg-gray-50">
+      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-600"></div>
+    </div>
+  );
 
   return (
     <div className="min-h-screen bg-gray-50 p-4 md:p-6 font-sans pb-20">
@@ -152,8 +192,8 @@ export default function CreatePromotion() {
             <ArrowLeft size={20} className="text-gray-600" />
           </Link>
           <div>
-            <h1 className="text-xl md:text-2xl font-bold text-gray-900">Create Promotion</h1>
-            <div className="text-sm text-gray-500">Promotions &gt; <span className="text-teal-600 font-medium">New</span></div>
+            <h1 className="text-xl md:text-2xl font-bold text-gray-900">Edit Promotion</h1>
+            <div className="text-sm text-gray-500">Promotions &gt; <span className="text-teal-600 font-medium">#{id}</span></div>
           </div>
         </div>
       </div>
@@ -252,7 +292,7 @@ export default function CreatePromotion() {
           </div>
         </div>
 
-        {/* --- Card 4: Scope & Products (UPDATED) --- */}
+        {/* --- Card 4: Scope & Products --- */}
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
           <div className="flex items-center gap-2 mb-4 text-gray-800 border-b border-gray-100 pb-2">
             <Package size={20} className="text-purple-600" />
@@ -278,11 +318,11 @@ export default function CreatePromotion() {
               </label>
             </div>
 
-            {/* --- Product Selector with Infinite Scroll --- */}
+            {/* --- Product Selector --- */}
             {scope === 'selected_products' && (
               <div className="mt-6 animate-fadeIn">
                 <div className="flex justify-between items-center mb-3">
-                  <h3 className="font-bold text-gray-700">Select Products ({selectedProducts.length})</h3>
+                  <h3 className="font-bold text-gray-700">Select Products ({selectedProducts?.length || 0})</h3>
                   {errors.products && <span className="text-xs text-red-500 font-medium">{errors.products.message}</span>}
                 </div>
 
@@ -291,10 +331,10 @@ export default function CreatePromotion() {
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                   <input 
                     type="text" 
-                    placeholder="Search by name or SKU (Server Side)..."
+                    placeholder="Search by name or SKU..."
                     className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-teal-500"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
+                    value={productSearch}
+                    onChange={(e) => setProductSearch(e.target.value)}
                   />
                 </div>
 
@@ -307,7 +347,7 @@ export default function CreatePromotion() {
                   ) : productList.length > 0 ? (
                     <>
                       {productList.map((product) => {
-                        const isSelected = selectedProducts.includes(product.id);
+                        const isSelected = selectedProducts?.includes(product.id);
                         return (
                           <div 
                             key={product.id}
@@ -366,10 +406,10 @@ export default function CreatePromotion() {
         <div className="flex justify-end pt-4">
           <button 
             type="submit" 
-            disabled={isSubmitting || createMutation.isPending}
+            disabled={isSubmitting || updateMutation.isPending}
             className="w-full md:w-auto flex items-center justify-center gap-2 px-8 py-3 bg-teal-700 text-white font-bold rounded-xl hover:bg-teal-800 transition disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-teal-100"
           >
-            {isSubmitting || createMutation.isPending ? 'Creating...' : <><Save size={20} /> Create Promotion</>}
+            {isSubmitting || updateMutation.isPending ? 'Saving Changes...' : <><Save size={20} /> Update Promotion</>}
           </button>
         </div>
 

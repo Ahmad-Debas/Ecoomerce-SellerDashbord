@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useNavigate } from 'react-router-dom'; // 1. استيراد هوك التنقل
+import { Link, useNavigate } from 'react-router-dom'; // 1. استيراد هوك التنقل
 import { 
   Search, Edit3, Trash2, PauseCircle, PlayCircle, 
   ChevronLeft, ChevronRight, Plus, X , AlertTriangle // 2. إضافة أيقونات جديدة
@@ -281,10 +281,10 @@ export default function Promotions() {
                     </td>
                     <td className="px-8 py-6">
                       <div className="flex items-center justify-center gap-4 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button className="text-teal-600 hover:text-teal-800 transition" title="Edit"><Edit3 size={18} /></button>
-                        <button className="text-blue-500 hover:text-blue-700 transition" title={promo.status === 'active' ? 'Pause' : 'Activate'}>
+                        <Link to={`/edit-promotion/${promo.id}`} className="text-teal-600 hover:text-teal-800 transition" title="Edit"><Edit3 size={18} /></Link>
+                        {/* <button className="text-blue-500 hover:text-blue-700 transition" title={promo.status === 'active' ? 'Pause' : 'Activate'}>
                            {promo.status === 'active' ? <PauseCircle size={18} /> : <PlayCircle size={18} />}
-                        </button>
+                        </button> */}
                         <button onClick={() => {confirmDelete(promo.id)}} className="text-red-400 hover:text-red-600 transition" title="Delete"><Trash2 size={18} /></button>
                       </div>
                     </td>

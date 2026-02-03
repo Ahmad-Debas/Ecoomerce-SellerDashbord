@@ -21,6 +21,7 @@ import Customers from "./Pages/Home/Customers.jsx";
 import ShowCustomer from "./Pages/Home/ShowCustomer.jsx";
 import Promotions from "./Pages/Home/Promotions.jsx";
 import CreatePromotion from "./Pages/Home/CreatePromotion.jsx";
+import ShowPromoition from "./Pages/Home/ShowPromoition.jsx";
 
 
 const ProtectedRoute = ({ children }) => {
@@ -106,6 +107,10 @@ const router = createBrowserRouter([
       {
         path: 'create-promotion',
         element: <CreatePromotion />
+      },
+       {
+        path: 'edit-promotion/:id',
+        element: <ShowPromoition />
       },
       
     ]
