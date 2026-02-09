@@ -301,8 +301,8 @@ export default function ShowProduct() {
                                     <tbody className="divide-y divide-gray-100">
                                         {displayData?.variants?.map((v, idx) => {
                                             // Image Logic
-                                            const mainImageSrc = variantImages[idx]?.main
-                                                ? URL.createObjectURL(variantImages[idx].main)
+                                            const mainImageSrc = (isEditing && variantImages[idx]?.main) ?
+                                                URL.createObjectURL(variantImages[idx].main)
                                                 : (v.main_img || "https://via.placeholder.com/60");
 
                                             const apiSubImages = v.sub_img || [];
