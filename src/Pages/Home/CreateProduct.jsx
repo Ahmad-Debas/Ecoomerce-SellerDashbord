@@ -372,7 +372,6 @@ const CreateProduct = () => {
                                     accept="image/*" 
                                     multiple
                                     className="hidden"
-                                    // !!! هام: إزالة register واستخدام onChange مخصص
                                     onChange={(e) => handleSubImageChange(index, e)}
                                 />
                              </label>

@@ -1,17 +1,21 @@
 import React, { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, QueryClient, useQueryClient } from '@tanstack/react-query';
 import { 
   Search, 
   Filter, 
   ChevronLeft, 
   ChevronRight, 
   Eye, 
+  Save,
   Edit3, 
   Package,
-  SlidersHorizontal
+  SlidersHorizontal,
+  X
 } from 'lucide-react';
 import api from '../../services/api'; 
 import { Link } from 'react-router-dom';
+import toast from 'react-hot-toast';
+import { set } from 'react-hook-form';
 
 // --- Helper Functions ---
 const getStatusStyle = (status) => {
@@ -43,7 +47,12 @@ export default function Inventory() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [stockLevelFilter, setStockLevelFilter] = useState('');
+  const queryClient = useQueryClient();
+  const [isupdate, setIsUpdate] = useState(false);
+  const [idInvo,setIdInvo] = useState(null);
 
+
+  const [quantityDraft,setQuantityDraft] = useState('');
   const { data: inventoryData, isLoading } = useQuery({
     queryKey: ['inventory', page, search, statusFilter, stockLevelFilter],
     queryFn: () => fetchInventory({ 
@@ -68,7 +77,46 @@ export default function Inventory() {
     setPage(1); 
   };
 
+  const currentQueryKey = ['inventory', page, search, statusFilter, stockLevelFilter];
+
+  const updateMutation = useMutation({
+  mutationFn: async ({ id, quantity }) => {
+    const response = await api.put(
+      `/seller/inventory/${id}/stock`,
+      { quantity  }
+    );
+    return response.data;
+  },
+  onSuccess: () => {
+    setIsUpdate(false);
+    queryClient.invalidateQueries({
+      queryKey: ['inventory', page, search, statusFilter, stockLevelFilter]
+    });
+    
+    toast.success("Inventory updated successfully!");
+  },
+  onError: (error) => {
+    console.log(error.response?.data);
+    toast.error(
+      error.response?.data?.message || "Failed to update inventory."
+    );
+    setIsUpdate(false);
+  }
+});
+
+ const handleSave = (id, quantity) => {
+  updateMutation.mutate({
+    id,
+    quantity: Number(quantity)
+  });
+};
+
+
+ 
   return (
+
+     <> 
+
     <div className="min-h-screen bg-[#F8F9FD] p-4 md:p-6 font-sans text-slate-800 pb-20 md:pb-6">
       
       {/* --- Header --- */}
@@ -205,7 +253,13 @@ export default function Inventory() {
                     <td className="py-4 px-6 text-sm text-gray-600 font-mono whitespace-nowrap">{item.sku || '-'}</td>
                     <td className="py-4 px-6 text-sm text-gray-600 whitespace-nowrap">{item.category?.name_en}</td>
                     <td className="py-4 px-6 text-sm text-gray-600 whitespace-nowrap">{item.brand?.name_en}</td>
-                    <td className="py-4 px-6 text-sm font-semibold text-gray-900 text-center whitespace-nowrap">{item.quantity}</td>
+                    <td className="py-4 px-6 text-sm font-semibold text-gray-900 text-center whitespace-nowrap">
+                      {(isupdate && idInvo === item.id) ? 
+                       <input type='number' defaultValue={item.quantity} onChange={(e) => { setQuantityDraft(e.target.value); }} className="w-16 border rounded px-2 py-1" />
+                      : 
+                       <h2> {item.quantity} </h2>  
+                      }
+                      </td>
                     
                     <td className="py-4 px-6 text-center whitespace-nowrap">
                       <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold border ${getStatusStyle(item.status)}`}>
@@ -218,9 +272,28 @@ export default function Inventory() {
                         <Link to={`/show-inventory/${item.id}`} className="p-2 text-gray-500 hover:text-teal-600 hover:bg-teal-50 rounded-lg transition">
                           <Eye size={18} />
                         </Link>
-                        <button className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition">
+                        
+                        {isupdate ? (
+                          <>
+                        <button onClick={()=> handleSave(item.id, quantityDraft)} className="p-2 text-gray-500 hover:text-green-600 hover:bg-green-50 rounded-lg transition">
+                          <Save size={18} />
+                        </button>
+
+                         <button onClick={()=> setIsUpdate(false)} className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition">
+                          <X size={18} />
+                        </button>
+
+                          
+                          </>
+
+
+                        )
+                        
+                        : 
+                        <button onClick={()=> { setIsUpdate(true); setIdInvo(item.id); }}  className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition">
                           <Edit3 size={18} />
                         </button>
+                        }
                       </div>
                     </td>
 
@@ -245,5 +318,6 @@ export default function Inventory() {
         )}
       </div>
     </div>
+      </>
   );
 }
