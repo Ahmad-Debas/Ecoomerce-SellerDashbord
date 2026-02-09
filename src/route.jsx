@@ -12,7 +12,7 @@ import Products from "./Pages/Home/Products.jsx";
 import Orders from "./Pages/Home/Orders.jsx";
 import OrdersTwo from "./Pages/Home/OrdersTwo.jsx"
 import ShowProduct from "./Pages/Home/ShowProduct.jsx";
-import CrateProduct from "./Pages/Home/CrateProduct.jsx"
+import CreateProduct from "./Pages/Home/CreateProduct.jsx"
 import ShowOrder from "./Pages/Home/ShowOrder.jsx";
 import Inventory from "./Pages/Home/Inventory.jsx";
 import ShowInventory from "./Pages/Home/ShowInventory.jsx";
@@ -22,6 +22,8 @@ import ShowCustomer from "./Pages/Home/ShowCustomer.jsx";
 import Promotions from "./Pages/Home/Promotions.jsx";
 import CreatePromotion from "./Pages/Home/CreatePromotion.jsx";
 import ShowPromoition from "./Pages/Home/ShowPromoition.jsx";
+import Payments from "./Pages/Home/Payments.jsx";
+import ShowInvoice from "./Pages/Home/ShowInvoice.jsx";
 
 
 const ProtectedRoute = ({ children }) => {
@@ -78,7 +80,7 @@ const router = createBrowserRouter([
      
       {
         path: 'create-product',
-        element: <CrateProduct />
+        element: <CreateProduct />
       },
       {
         path: 'show-order/:id',
@@ -108,9 +110,17 @@ const router = createBrowserRouter([
         path: 'create-promotion',
         element: <CreatePromotion />
       },
-       {
+      {
         path: 'edit-promotion/:id',
         element: <ShowPromoition />
+      },
+      {
+        path: 'payments',
+        element: <Payments />
+      },
+      {
+        path: 'invoice/:id',
+        element: <ShowInvoice />
       },
       
     ]

@@ -1,7 +1,7 @@
 import React from 'react';
-import { useForm, useFieldArray } from 'react-hook-form';
+import { useForm, useFieldArray, useWatch } from 'react-hook-form';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Save, Plus, Trash2, Upload, ArrowLeft } from 'lucide-react';
+import { Save, Plus, Trash2, Upload, X } from 'lucide-react';
 import api from '../../services/api';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
@@ -34,17 +34,24 @@ const CreateProduct = () => {
   });
 
   // --- 3. Form Setup ---
-  const { register, control, handleSubmit, formState: { errors } } = useForm({
+  const { register, control, handleSubmit, formState: { errors }, setValue, getValues, watch } = useForm({
     defaultValues: {
       name_en: '', name_ar: '', sku: '',
       category_id: '', brand_id: '', style_id: '', country_id: '',
       material: '', age_from: '', age_to: '',
       description_en: '', description_ar: '',
       variants: [{
-        sku: '', price: '', quantity: 0,
+        sku: '', 
+        price: '', 
+        final_price: '', 
+        cost_price: '',
+        discount_price: '',
+        quantity: 0,
         color_id: '', size_id: '',
         weight_kg: '', length_cm: '', width_cm: '', height_cm: '',
-        is_default: false, img: null 
+        is_default: false, 
+        main_img: null, 
+        sub_img: []    // مصفوفة فارغة للبدء
       }]
     }
   });
@@ -54,26 +61,79 @@ const CreateProduct = () => {
     name: "variants"
   });
 
+  // لمراقبة التغييرات وعرض الصور
+  const watchedVariants = watch("variants");
+
+  // --- دالة مخصصة لإضافة الصور الفرعية (تراكمي) ---
+  const handleSubImageChange = (index, e) => {
+    const files = e.target.files;
+    if (files && files.length > 0) {
+        // 1. جلب الصور الموجودة حالياً في الفورم
+        const currentFiles = getValues(`variants.${index}.sub_img`) || [];
+        
+        // 2. تحويل FileList الجديد إلى Array
+        const newFiles = Array.from(files);
+
+        // 3. دمج القديم مع الجديد (Append)
+        // ملاحظة: currentFiles قد تكون FileList أحياناً لذا نضمن تحويلها لـ Array
+        const combinedFiles = [...(Array.isArray(currentFiles) ? currentFiles : Array.from(currentFiles)), ...newFiles];
+
+        // 4. تحديث قيمة الفورم يدوياً
+        setValue(`variants.${index}.sub_img`, combinedFiles);
+    }
+    // تصفير الإنبوت للسماح باختيار نفس الملف مرة أخرى
+    e.target.value = '';
+  };
+
+  // --- دالة لحذف صورة فرعية محددة ---
+  const removeSubImage = (variantIndex, fileIndex) => {
+      const currentFiles = getValues(`variants.${variantIndex}.sub_img`);
+      if (!currentFiles) return;
+
+      const updatedFiles = Array.from(currentFiles).filter((_, i) => i !== fileIndex);
+      setValue(`variants.${variantIndex}.sub_img`, updatedFiles);
+  };
+
+
   // --- 4. Submit Logic ---
   const onSubmit = (data) => {
     const formData = new FormData();
+    
+    // Append General Info
     Object.keys(data).forEach(key => {
       if (key !== 'variants' && data[key]) formData.append(key, data[key]);
     });
 
+    // Append Variants
     data.variants.forEach((variant, index) => {
       formData.append(`variants[${index}][price]`, variant.price);
       formData.append(`variants[${index}][quantity]`, variant.quantity);
+      formData.append(`variants[${index}][final_price]`, variant.final_price);
+      if(variant.discount_price) formData.append(`variants[${index}][discount_price]`, variant.discount_price);
+      if(variant.cost_price) formData.append(`variants[${index}][cost_price]`, variant.cost_price);
+      
       if(variant.sku) formData.append(`variants[${index}][sku]`, variant.sku);
       if(variant.color_id) formData.append(`variants[${index}][color_id]`, variant.color_id);
       if(variant.size_id) formData.append(`variants[${index}][size_id]`, variant.size_id);
+      
       if(variant.weight_kg) formData.append(`variants[${index}][weight_kg]`, variant.weight_kg);
       if(variant.length_cm) formData.append(`variants[${index}][length_cm]`, variant.length_cm);
       if(variant.width_cm) formData.append(`variants[${index}][width_cm]`, variant.width_cm);
       if(variant.height_cm) formData.append(`variants[${index}][height_cm]`, variant.height_cm);
+      
       formData.append(`variants[${index}][is_default]`, variant.is_default ? '1' : '0');
-      if (variant.img && variant.img[0]) {
-        formData.append(`variants[${index}][img]`, variant.img[0]);
+      
+      // Handle Main Image (Single File)
+      // ملاحظة: main_img قد تكون FileList (من register) أو Array (لو عدلناها يدوياً)
+      if (variant.main_img && variant.main_img.length > 0) {
+        formData.append(`variants[${index}][main_img]`, variant.main_img[0]);
+      }
+
+      // Handle Sub Images (Multiple Files)
+      if (variant.sub_img && variant.sub_img.length > 0) {
+          Array.from(variant.sub_img).forEach((file, fileIndex) => {
+             formData.append(`variants[${index}][sub_img][${fileIndex}]`, file);
+          });
       }
     });
 
@@ -81,12 +141,10 @@ const CreateProduct = () => {
   };
 
   return (
-    // التعديل 1: تقليل الـ Padding للموبايل (p-4) وزيادته للكمبيوتر (md:p-6)
     <div className="min-h-screen bg-gray-50 p-4 md:p-6 font-sans pb-20 md:pb-6"> 
       <form onSubmit={handleSubmit(onSubmit)} className="max-w-7xl mx-auto space-y-6">
         
         {/* --- Header --- */}
-        {/* التعديل 2: العناصر فوق بعض بالموبايل (flex-col) وجنب بعض بالتابلت (sm:flex-row) */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Add Product</h1>
@@ -110,9 +168,7 @@ const CreateProduct = () => {
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 md:p-6">
           <h2 className="text-lg font-bold mb-6 text-gray-800 border-b border-gray-100 pb-4">General Information</h2>
           
-          {/* التعديل 3: Grid System - عمود واحد للموبايل، عمودين للكمبيوتر */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            
             {/* Names */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">Product Name (EN) <span className="text-red-500">*</span></label>
@@ -169,7 +225,7 @@ const CreateProduct = () => {
               <input {...register('material')} className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-teal-500 outline-none" placeholder="e.g. 100% Cotton" />
             </div>
             
-            {/* Age Range - يبقى Flex لأنهما حقلين صغيرين */}
+            {/* Age Range */}
             <div className="flex gap-4">
                <div className="flex-1">
                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Age From</label>
@@ -201,7 +257,7 @@ const CreateProduct = () => {
              <h2 className="text-lg font-bold text-gray-800">Product Variants</h2>
              <button 
                 type="button" 
-                onClick={() => append({ price: '', quantity: 0, is_default: false })} 
+                onClick={() => append({ price: '', final_price: '', cost_price: '', quantity: 0, is_default: false, main_img: null, sub_img: [] })} 
                 className="text-sm flex items-center gap-2 text-teal-600 hover:text-teal-700 font-bold bg-teal-50 px-4 py-2 rounded-lg transition"
              >
                 <Plus size={18} /> <span className="hidden sm:inline">Add Variant</span> <span className="sm:hidden">Add</span>
@@ -209,20 +265,23 @@ const CreateProduct = () => {
           </div>
           
           <div className="space-y-6">
-            {fields.map((field, index) => (
+            {fields.map((field, index) => {
+              
+              const mainImgFile = watchedVariants?.[index]?.main_img?.[0];
+              const subImgFiles = watchedVariants?.[index]?.sub_img;
+
+              return (
               <div key={field.id} className="p-4 md:p-6 border border-gray-200 rounded-xl bg-gray-50/30 relative group hover:border-teal-200 transition-colors">
                 
-                {/* زر الحذف: في الموبايل يكون أصغر قليلاً ومكانه مضبوط */}
                 {fields.length > 1 && (
                   <button type="button" onClick={() => remove(index)} className="absolute top-2 right-2 md:top-4 md:right-4 text-gray-400 hover:text-red-500 transition p-1.5 bg-white rounded-full shadow-sm border border-gray-100 z-10">
                     <Trash2 size={16} />
                   </button>  
                 )}
 
-                {/* التعديل 4: Grid للفاريانت - عمود واحد موبايل، 3 تابلت، 4 كمبيوتر */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
                    
-                   {/* Color */}
+                   {/* ... (Colors, Sizes, Prices, etc. remain the same) ... */}
                    <div>
                      <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">Color</label>
                      <select {...register(`variants.${index}.color_id`)} className="w-full p-2.5 border border-gray-200 rounded-lg bg-white text-sm focus:ring-2 focus:ring-teal-500 outline-none">
@@ -231,7 +290,6 @@ const CreateProduct = () => {
                      </select>
                    </div>
                    
-                   {/* Size */}
                    <div>
                      <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">Size</label>
                      <select {...register(`variants.${index}.size_id`)} className="w-full p-2.5 border border-gray-200 rounded-lg bg-white text-sm focus:ring-2 focus:ring-teal-500 outline-none">
@@ -240,42 +298,110 @@ const CreateProduct = () => {
                      </select>
                    </div>
                    
-                   {/* Price */}
                    <div>
                      <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">Price *</label>
                      <input type="number" step="0.01" {...register(`variants.${index}.price`, { required: true })} className="w-full p-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-teal-500 outline-none" placeholder="0.00" />
                    </div>
+
+                   <div>
+                     <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">Discount Price</label>
+                     <input type="number" step="0.01" {...register(`variants.${index}.discount_price`)} className="w-full p-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-teal-500 outline-none" placeholder="0.00" />
+                   </div>
+
+                   <div>
+                     <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">Final Price *</label>
+                     <input type="number" step="0.01" {...register(`variants.${index}.final_price`, { required: true })} className="w-full p-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-teal-500 outline-none" placeholder="0.00" />
+                   </div>
+
+                   <div>
+                     <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">Cost Price</label>
+                     <input type="number" step="0.01" {...register(`variants.${index}.cost_price`)} className="w-full p-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-teal-500 outline-none" placeholder="0.00" />
+                   </div>
                    
-                   {/* Quantity */}
                    <div>
                      <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">Quantity *</label>
                      <input type="number" {...register(`variants.${index}.quantity`, { required: true })} className="w-full p-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-teal-500 outline-none" placeholder="0" />
                    </div>
                    
-                   {/* SKU - يأخذ عمودين في الكمبيوتر */}
-                   <div className="sm:col-span-2">
+                   <div className="sm:col-span-1">
                       <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">Variant SKU</label>
-                      <input {...register(`variants.${index}.sku`)} className="w-full p-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-teal-500 outline-none" placeholder="Leave blank to auto-generate" />
+                      <input {...register(`variants.${index}.sku`)} className="w-full p-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-teal-500 outline-none" placeholder="Auto" />
                    </div>
-                   
-                   {/* Image */}
-                   <div className="sm:col-span-2">
-                      <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">Variant Image</label>
-                      <label className="cursor-pointer flex items-center justify-center px-4 py-2.5 border border-gray-300 border-dashed rounded-lg hover:bg-white hover:border-teal-500 transition bg-white w-full group-hover:bg-white">
-                           <Upload size={16} className="text-gray-400 mr-2 group-hover:text-teal-500" />
-                           <span className="text-sm text-gray-500 group-hover:text-teal-600">Click to upload image</span>
-                           <input type="file" accept="image/*" className="hidden" {...register(`variants.${index}.img`)} />
-                      </label>
-                   </div>
-                   
-                   {/* Is Default */}
-                   <div className="flex items-center sm:col-span-4 mt-2">
+
+                   <div className="flex items-center sm:col-span-4 mt-2 mb-4">
                       <input type="checkbox" {...register(`variants.${index}.is_default`)} id={`def-${index}`} className="w-4 h-4 text-teal-600 rounded border-gray-300 focus:ring-teal-500" />
                       <label htmlFor={`def-${index}`} className="ml-2 text-sm font-medium text-gray-700 cursor-pointer">Set as Default Variant</label>
                    </div>
+                   
+                   {/* --- Images Section --- */}
+                   <div className="col-span-1 sm:col-span-2 md:col-span-3 lg:col-span-4 grid grid-cols-1 md:grid-cols-2 gap-6 border-t border-gray-200 pt-4">
+                      
+                      {/* 1. Main Image (Standard Register) */}
+                      <div>
+                         <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Main Image</label>
+                         <div className="flex items-start gap-4">
+                             <div className="w-20 h-20 bg-gray-100 rounded-lg border border-gray-200 flex items-center justify-center overflow-hidden flex-shrink-0">
+                                {mainImgFile ? (
+                                    <img src={URL.createObjectURL(mainImgFile)} alt="Main" className="w-full h-full object-cover" />
+                                ) : (
+                                    <span className="text-xs text-gray-400">No Img</span>
+                                )}
+                             </div>
+                             <label className="cursor-pointer flex-1 flex flex-col items-center justify-center px-4 py-3 border border-gray-300 border-dashed rounded-lg hover:bg-white hover:border-teal-500 transition bg-white h-20">
+                                <Upload size={18} className="text-gray-400 mb-1" />
+                                <span className="text-xs text-gray-500">Upload Main</span>
+                                <input 
+                                    type="file" 
+                                    accept="image/*" 
+                                    className="hidden" 
+                                    {...register(`variants.${index}.main_img`)} 
+                                />
+                             </label>
+                         </div>
+                      </div>
+
+                      {/* 2. Sub Images (Custom Controlled Logic) */}
+                      <div>
+                         <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Sub Images (Max 5)</label>
+                         <div className="space-y-3">
+                             <label className="cursor-pointer w-full flex flex-col items-center justify-center px-4 py-2 border border-gray-300 border-dashed rounded-lg hover:bg-white hover:border-teal-500 transition bg-white">
+                                <Upload size={18} className="text-gray-400 mb-1" />
+                                <span className="text-xs text-gray-500">Select Multiple Images</span>
+                                <input 
+                                    type="file" 
+                                    accept="image/*" 
+                                    multiple
+                                    className="hidden"
+                                    // !!! هام: إزالة register واستخدام onChange مخصص
+                                    onChange={(e) => handleSubImageChange(index, e)}
+                                />
+                             </label>
+
+                             {/* Preview & Delete */}
+                             {subImgFiles && subImgFiles.length > 0 && (
+                                 <div className="flex flex-wrap gap-2">
+                                     {Array.from(subImgFiles).map((file, i) => (
+                                         <div key={i} className="relative w-12 h-12 bg-gray-100 rounded border border-gray-200 overflow-hidden group">
+                                             <img src={URL.createObjectURL(file)} className="w-full h-full object-cover" />
+                                             {/* زر الحذف */}
+                                             <button 
+                                                type="button"
+                                                onClick={() => removeSubImage(index, i)}
+                                                className="absolute top-0 right-0 bg-red-500 text-white w-4 h-4 flex items-center justify-center opacity-0 group-hover:opacity-100 transition rounded-bl-md"
+                                             >
+                                                <X size={10} />
+                                             </button>
+                                         </div>
+                                     ))}
+                                 </div>
+                             )}
+                         </div>
+                      </div>
+                   </div>
+                   
                 </div>
                 
-                {/* Dimensions - بالموبايل 2 جنب بعض، بالكمبيوتر 4 */}
+                {/* Dimensions */}
                 <div className="mt-5 pt-4 border-t border-gray-200/60 grid grid-cols-2 md:grid-cols-4 gap-4">
                     <div><label className="text-[10px] text-gray-400 uppercase font-bold">Weight (kg)</label><input type="number" step="0.01" {...register(`variants.${index}.weight_kg`)} className="w-full p-1.5 border border-gray-200 rounded text-sm mt-1" /></div>
                     <div><label className="text-[10px] text-gray-400 uppercase font-bold">Length (cm)</label><input type="number" {...register(`variants.${index}.length_cm`)} className="w-full p-1.5 border border-gray-200 rounded text-sm mt-1" /></div>
@@ -283,7 +409,7 @@ const CreateProduct = () => {
                     <div><label className="text-[10px] text-gray-400 uppercase font-bold">Height (cm)</label><input type="number" {...register(`variants.${index}.height_cm`)} className="w-full p-1.5 border border-gray-200 rounded text-sm mt-1" /></div>
                 </div>
               </div>
-            ))}
+            )})}
           </div>
         </div>
       </form>
