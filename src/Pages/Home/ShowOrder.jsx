@@ -31,7 +31,6 @@ const getStatusStyle = (status) => {
 
 export default function ShowOrder() {
   const { id } = useParams();
-
   const { data: order, isLoading, isError } = useQuery({
     queryKey: ['order', id],
     queryFn: async () => {
@@ -58,7 +57,7 @@ export default function ShowOrder() {
     );
   }
 
-  const addr = order.shipping_address || {};
+  const addr = order.customer.address || {};
   const customer = order.customer || {};
 
   return (
@@ -202,8 +201,8 @@ export default function ShowOrder() {
                             <div className="flex gap-3 md:gap-4">
                                 {/* Image - Fixed Size */}
                                 <div className="w-14 h-14 md:w-16 md:h-16 rounded-lg bg-white border border-gray-200 p-1 flex-shrink-0 flex items-center justify-center">
-                                    {item.image ? (
-                                        <img src={item.image} alt={item.product_name_en} className="w-full h-full object-contain mix-blend-multiply" />
+                                    {item.image_url ? (
+                                        <img src={item.image_url} alt={item.product_name} className="w-full h-full object-contain mix-blend-multiply" />
                                     ) : (
                                         <Package className="text-gray-300" size={24} />
                                     )}
@@ -214,7 +213,7 @@ export default function ShowOrder() {
                                     {/* Top Row: Name (Left) + Price (Right) */}
                                     <div className="flex justify-between items-start gap-2 mb-1">
                                         <h3 className="text-sm font-bold text-gray-900 line-clamp-2 leading-snug">
-                                            {item.product_name_en}
+                                            {item.product_name}
                                         </h3>
                                         {/* Price Fixed - No Wrap */}
                                         <div className="font-bold text-gray-900 text-sm whitespace-nowrap">
@@ -223,7 +222,7 @@ export default function ShowOrder() {
                                     </div>
                                     
                                     {/* SKU */}
-                                    <p className="text-[10px] text-gray-400 font-mono mb-2">SKU: {item.variant_sku || '-'}</p>
+                                    <p className="text-[10px] text-gray-400 font-mono mb-2">SKU: {item.sku || '-'}</p>
 
                                     {/* Badges Row */}
                                     <div className="flex flex-wrap items-center gap-2">
@@ -267,17 +266,21 @@ export default function ShowOrder() {
                     <div className="w-full md:w-1/2 space-y-2">
                         <div className="flex justify-between text-sm">
                             <span className="text-gray-500">Sub Total</span>
-                            <span className="font-medium text-gray-900">{Number(order.total_amount - (order.shipping_cost || 0)).toLocaleString()} SAR</span>
+                            <span className="font-medium text-gray-900">{Number(order.financials.sub_total - (order.shipping_cost || 0)).toLocaleString()} SAR</span>
                         </div>
                         <div className="flex justify-between text-sm">
                             <span className="text-gray-500">Shipping</span>
-                            <span className="font-medium text-gray-900">{Number(order.shipping_cost || 0).toLocaleString()} SAR</span>
+                            <span className="font-medium text-gray-900">{Number(order.financials.shipping_income || 0).toLocaleString()} SAR</span>
+                        </div>
+                          <div className="flex justify-between text-sm">
+                            <span className="text-gray-500">Discount</span>
+                            <span className="font-medium text-gray-900">{Number(order.financials.discount_share || 0).toLocaleString()} SAR</span>
                         </div>
                         
                         <div className="border-t border-dashed border-gray-200 mt-4 pt-3 flex justify-between items-center">
                             <span className="font-bold text-gray-900">Total</span>
                             <span className="font-bold text-xl text-teal-600">
-                                {Number(order.total_amount).toLocaleString()} <span className="text-xs text-gray-500">SAR</span>
+                                {Number(order.financials.net_total).toLocaleString()} <span className="text-xs text-gray-500">SAR</span>
                             </span>
                         </div>
 

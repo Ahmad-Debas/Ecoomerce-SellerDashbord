@@ -45,7 +45,7 @@ export default function Orders() {
     queryFn: fetchKPI,
     initialData: { total_orders: 0, pending_orders: 0, completed_orders: 0, total_earnings: 0 }
   });
-
+ 
   // 2. Fetch Orders
   const { data: ordersData, isLoading } = useQuery({
     queryKey: ['orders-list', page],
@@ -167,22 +167,22 @@ export default function Orders() {
                 <th className="py-4 text-xs font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap">Date</th>
                 <th className="py-4 text-xs font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap">Customer</th>
                 <th className="py-4 text-xs font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap">Total</th>
+                <th className="py-4 text-xs font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap">discount</th>
+                <th className="py-4 text-xs font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap">net_total</th>
+
                 <th className="py-4 text-xs font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap">Status</th>
                 <th className="py-4 pr-6 text-xs font-bold text-gray-500 uppercase tracking-wider text-right whitespace-nowrap">Actions</th>
               </tr>
             </thead>
             <tbody className="text-sm divide-y divide-gray-50">
               {orders.map((order) => {
-                const { dayName, datePart, timePart } = formatDateDetails(order.date);
+                const { dayName, datePart, timePart } = formatDateDetails(order.created_at);
                 return (
                   <tr key={order.id} className="group hover:bg-gray-50/80 transition-colors">
-                    
                     {/* Order ID */}
                     <td className="py-4 pl-6 font-medium text-gray-600 whitespace-nowrap">#{order.id}</td>
-                    
                     {/* Order Number */}
                     <td className="py-4 pl-4 font-mono text-gray-500 whitespace-nowrap">#{order.order_number}</td>
-                    
                     {/* Date (Fixed Width) */}
                     <td className="py-4 text-gray-500 whitespace-nowrap">
                         <div className="flex flex-col text-xs">
@@ -192,10 +192,18 @@ export default function Orders() {
                     </td>
                     
                     {/* Customer */}
-                    <td className="py-4 font-medium text-gray-700 whitespace-nowrap">{order.customer_name}</td>
+                    <td className="py-4 font-medium text-gray-700 whitespace-nowrap">{order.customer.name}</td>
                     
                     {/* Total */}
-                    <td className="py-4 font-bold text-gray-800 whitespace-nowrap">${Number(order.amount).toLocaleString()}</td>
+                    <td className="py-4 font-bold text-gray-800 whitespace-nowrap">
+                     ${Number(order.financials.sub_total).toLocaleString()}
+                    </td>
+                     <td className="py-4 font-bold text-gray-800 whitespace-nowrap">
+                     ${Number(order.financials.discount_share).toLocaleString()}
+                    </td>
+                     <td className="py-4 font-bold text-gray-800 whitespace-nowrap">
+                     ${Number(order.financials.net_total).toLocaleString()}
+                    </td>
                     
                     {/* Status */}
                     <td className="py-4 whitespace-nowrap">
@@ -219,7 +227,6 @@ export default function Orders() {
                         </button>
                       </div>
                     </td>
-
                   </tr>
                 );
               })}

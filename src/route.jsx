@@ -24,6 +24,7 @@ import CreatePromotion from "./Pages/Home/CreatePromotion.jsx";
 import ShowPromoition from "./Pages/Home/ShowPromoition.jsx";
 import Payments from "./Pages/Home/Payments.jsx";
 import ShowInvoice from "./Pages/Home/ShowInvoice.jsx";
+import Profile from "./Pages/Home/ProfileComponent/Profile.jsx";
 
 
 const ProtectedRoute = ({ children }) => {
@@ -121,6 +122,14 @@ const router = createBrowserRouter([
       {
         path: 'invoice/:id',
         element: <ShowInvoice />
+      },
+      {
+        path: 'profile',
+        element: <Profile />
+      },
+      {
+        path: 'coupons',
+        element: <Profile />
       },
       
     ]

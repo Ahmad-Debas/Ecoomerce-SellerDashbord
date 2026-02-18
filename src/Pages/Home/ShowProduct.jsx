@@ -381,26 +381,61 @@ export default function ShowProduct() {
                                                     </td>
 
                                                     <td className="px-6 py-4 align-top">
-                                                        {v.color?.name_en} / {v.size?.code}
+                                                        {isEditing ? (
+                                                            <div className="flex flex-col gap-2 min-w-[120px]">
+                                                                {/* Color Select */}
+                                                                <select
+                                                                    className="w-full border border-gray-300 rounded px-2 py-1 text-sm bg-white focus:ring-2 focus:ring-blue-500 outline-none"
+                                                                    value={v.color_id ?? v.color?.id ?? ""}
+                                                                    onChange={(e) => handleVariantChange(idx, 'color_id', e.target.value)}
+                                                                >
+                                                                    <option value="">Select Color</option>
+                                                                    {colors.map(c => (
+                                                                        <option key={c.id} value={c.id}>{c.name_en}</option>
+                                                                    ))}
+                                                                </select>
+
+                                                                {/* Size Select */}
+                                                                <select
+                                                                    className="w-full border border-gray-300 rounded px-2 py-1 text-sm bg-white focus:ring-2 focus:ring-blue-500 outline-none"
+                                                                    value={v.size_id ?? v.size?.id ?? ""}
+                                                                    onChange={(e) => handleVariantChange(idx, 'size_id', e.target.value)}
+                                                                >
+                                                                    <option value="">Select Size</option>
+                                                                    {sizes.map(s => (
+                                                                        <option key={s.id} value={s.id}>{s.name_en}</option>
+                                                                    ))}
+                                                                </select>
+                                                            </div>
+                                                        ) : (
+                                                            <div className="flex flex-col gap-1">
+                                                                <span className="text-sm text-gray-700 font-medium">
+                                                                    {v.color?.name_en || 'No Color'}
+                                                                </span>
+                                                                <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded border w-fit">
+                                                                    {v.size?.code || 'No Size'}
+                                                                </span>
+                                                            </div>
+                                                        )}
                                                     </td>
-                                                   <td className="px-6 py-4">
-                                                {isEditing ? (
-                                                    <input
-                                                    type="number"
-                                                    value={v.price}
-                                                    onChange={(e) => handleVariantChange(idx, 'price', e.target.value)}
-                                                    className="w-20 border rounded px-1"
-                                                    />
-                                                ) : (
-                                                    <div className="flex flex-col leading-tight">
-                                                
-                                                        <span className="text-sm font-medium text-gray-800">
-                                                        {v.price}
-                                                        </span>
-                                                    
-                                                    </div>
-                                                )}
-                                                </td>
+                                                    <td className="px-6 py-4">
+                                                        {isEditing ? (
+                                                            <input
+                                                                type="number"
+                                                                value={v.price}
+                                                                onChange={(e) => handleVariantChange(idx, 'price', e.target.value)}
+                                                                className="w-20 border rounded px-1"
+                                                            />
+                                                        ) : (
+                                                            <div className="flex flex-col leading-tight">
+
+                                                                <span className="text-sm font-medium text-gray-800">
+                                                                    {v.price}
+                                                                </span>
+
+                                                            </div>
+                                                        )}
+                                                    </td>
                                                     <td className="px-6 py-4">
                                                         {isEditing ? (<input type="number" value={v.discount_price || '--'} onChange={(e) => handleVariantChange(idx, 'discount_price', e.target.value)} className="w-16 border rounded px-1" />) : (v.discount_price || '--')}
                                                     </td>

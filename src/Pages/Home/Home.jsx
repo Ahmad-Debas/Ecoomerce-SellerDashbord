@@ -1,228 +1,268 @@
-import { useEffect, useState } from "react";
-import { 
-  HiCurrencyDollar, HiShoppingBag, HiUsers, HiCube, 
-  HiArrowUp, HiArrowDown 
-} from "react-icons/hi";
+import React, { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { 
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar 
 } from 'recharts';
-import api from "../../Services/api"; // الـ Axios Instance تبعنا
+import { 
+  ShoppingBag, Users, DollarSign, Package, Clock, CheckCircle, XCircle, 
+  TrendingUp, Calendar, ArrowRight, MoreHorizontal 
+} from 'lucide-react';
+import api from '../../services/api';
+import { Link } from 'react-router-dom';
+
+// --- Helper: Format Currency ---
+const formatCurrency = (value) => {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+  }).format(value);
+};
+
+// --- Helper: Status Badge ---
+const StatusBadge = ({ status }) => {
+  const styles = {
+    pending: 'bg-yellow-100 text-yellow-700',
+    processing: 'bg-blue-100 text-blue-700',
+    shipped: 'bg-purple-100 text-purple-700',
+    delivered: 'bg-green-100 text-green-700',
+    approved: 'bg-emerald-100 text-emerald-700',
+    cancelled: 'bg-red-100 text-red-700',
+    returned: 'bg-gray-100 text-gray-700',
+  };
+  
+  return (
+    <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium capitalize ${styles[status] || 'bg-gray-100'}`}>
+      {status}
+    </span>
+  );
+};
 
 export default function Home() {
-  const [stats, setStats] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [period, setPeriod] = useState('daily');
 
-  // 1. دالة جلب البيانات
-  useEffect(() => {
-    const fetchStats = async () => {
-      try {
-        
-        await new Promise(resolve => setTimeout(resolve, 1000));
+  // 1. Fetch Summary Stats
+  const { data: summary } = useQuery({
+    queryKey: ['dashboard-summary'],
+    queryFn: async () => (await api.get('/seller/dashboard/summary')).data.data
+  });
 
-        setStats({
-            total_revenue: "40,689",
-            daily_revenue: "1,029",
-            orders: "3,456",
-            products: "15",
-            revenue_data: [
-              { name: 'Sat', value: 4000 }, { name: 'Sun', value: 3000 },
-              { name: 'Mon', value: 5000 }, { name: 'Tue', value: 2780 },
-              { name: 'Wed', value: 1890 }, { name: 'Thu', value: 2390 },
-              { name: 'Fri', value: 3490 },
-            ],
-            recent_orders: [
-                { id: "#SK2540", date: "2026-01-14", customer: "Neal Matthews", total: "$420.00", status: "Shipped" },
-                { id: "#SK2541", date: "2026-01-13", customer: "Jamal Burnett", total: "$110.00", status: "Pending" },
-                { id: "#SK2542", date: "2026-01-12", customer: "Juan Mitchell", total: "$750.00", status: "Delivered" },
-                { id: "#SK2543", date: "2026-01-11", customer: "Barry Roy", total: "$30.00", status: "Cancelled" },
-            ]
-        });
-      } catch (error) {
-        console.error("Failed to fetch dashboard data", error);
-      } finally {
-        setLoading(false);
-      }
-    };
+  // 2. Fetch Sales Chart
+  const { data: salesData } = useQuery({
+    queryKey: ['dashboard-sales', period],
+    queryFn: async () => (await api.get(`/seller/dashboard/charts/sales?period=${period}`)).data.data
+  });
 
-    fetchStats();
-  }, []);
+  // 3. Fetch Top Products
+  const { data: topProducts } = useQuery({
+    queryKey: ['dashboard-products', period],
+    queryFn: async () => (await api.get(`/seller/dashboard/charts/products?period=${period}`)).data.data
+  });
 
- 
-  if (loading) {
-    return (
-      <div className="space-y-6 animate-pulse">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-            {[1,2,3,4].map(i => <div key={i} className="h-32 bg-gray-200 rounded-2xl"></div>)}
-        </div>
-        <div className="h-80 bg-gray-200 rounded-2xl"></div>
-      </div>
-    );
-  }
+  // 4. Fetch Customers
+  const { data: customers } = useQuery({
+    queryKey: ['dashboard-customers'],
+    queryFn: async () => (await api.get('/seller/dashboard/charts/customers')).data.data
+  });
 
+  // 5. Fetch Recent Orders
+  const { data: recentOrders } = useQuery({
+    queryKey: ['dashboard-recent-orders'],
+    queryFn: async () => (await api.get('/seller/dashboard/orders/recent')).data.data.items
+  });
 
-  const StatCard = ({ title, value, icon, trend, color }) => (
-    <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 transition hover:shadow-md">
-      <div className="flex justify-between items-start">
-        <div>
-          <p className="text-gray-500 text-sm font-medium mb-1">{title}</p>
-          <h3 className="text-2xl font-bold text-gray-800">{value}</h3>
-        </div>
-        <div className={`p-3 rounded-xl ${color} text-white`}>
-          {icon}
-        </div>
-      </div>
-      <div className="mt-4 flex items-center text-sm">
-        <span className={`flex items-center font-medium ${trend >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-          {trend >= 0 ? <HiArrowUp className="mr-1"/> : <HiArrowDown className="mr-1"/>}
-          {Math.abs(trend)}%
-        </span>
-        <span className="text-gray-400 ml-2">vs last month</span>
-      </div>
-    </div>
-  );
-
-  // حالة الطلب (لتلوين الباج)
-  const getStatusColor = (status) => {
-      switch(status) {
-          case 'Delivered': return 'bg-green-100 text-green-700';
-          case 'Pending': return 'bg-yellow-100 text-yellow-700';
-          case 'Shipped': return 'bg-blue-100 text-blue-700';
-          case 'Cancelled': return 'bg-red-100 text-red-700';
-          default: return 'bg-gray-100 text-gray-700';
-      }
-  };
+  // --- Stat Cards Configuration ---
+  const statCards = [
+    { label: 'Total Revenue', value: '$12,450', icon: DollarSign, color: 'bg-emerald-500' }, // Static for demo or sum from API
+    { label: 'Pending Orders', value: summary?.pending || 0, icon: Clock, color: 'bg-orange-500' },
+    { label: 'Processing', value: summary?.processing || 0, icon: Package, color: 'bg-blue-500' },
+    { label: 'Delivered', value: summary?.delivered || 0, icon: CheckCircle, color: 'bg-teal-500' },
+  ];
 
   return (
-    <div className="space-y-6">
+    <div className="min-h-screen bg-[#F8F9FD] p-4 md:p-6 font-sans pb-20">
       
-      {/* --- Section 1: Top Stats --- */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatCard 
-          title="Total Revenue" 
-          value={`$${stats.total_revenue}`} 
-          icon={<HiCurrencyDollar size={24} />} 
-          color="bg-blue-600"
-          trend={12.5}
-        />
-        <StatCard 
-          title="Total Orders" 
-          value={stats.orders} 
-          icon={<HiShoppingBag size={24} />} 
-          color="bg-teal-600"
-          trend={-2.4}
-        />
-        <StatCard 
-          title="Products" 
-          value={stats.products} 
-          icon={<HiCube size={24} />} 
-          color="bg-purple-600"
-          trend={5.8}
-        />
-        <StatCard 
-          title="Customers" 
-          value="1,205" 
-          icon={<HiUsers size={24} />} 
-          color="bg-orange-500"
-          trend={8.2}
-        />
+      {/* Header */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Dashboard Overview</h1>
+          <p className="text-sm text-gray-500 mt-1">Welcome back, here's what's happening with your store.</p>
+        </div>
+        <div className="flex gap-2 bg-white p-1 rounded-lg border border-gray-200">
+          {['daily', 'weekly', 'monthly'].map((p) => (
+            <button
+              key={p}
+              onClick={() => setPeriod(p)}
+              className={`px-4 py-1.5 text-xs font-medium rounded-md capitalize transition-all ${
+                period === p ? 'bg-teal-50 text-teal-700 shadow-sm' : 'text-gray-500 hover:bg-gray-50'
+              }`}
+            >
+              {p}
+            </button>
+          ))}
+        </div>
       </div>
 
-      {/* --- Section 2: Charts Area --- */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {/* 1. Stats Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        {statCards.map((stat, idx) => (
+          <div key={idx} className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between">
+            <div>
+              <p className="text-gray-500 text-xs font-medium uppercase tracking-wide">{stat.label}</p>
+              <h3 className="text-2xl font-bold text-gray-800 mt-1">{stat.value}</h3>
+            </div>
+            <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white shadow-md ${stat.color}`}>
+              <stat.icon size={20} />
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
         
-        {/* Main Chart (Revenue) - يأخذ ثلثين المساحة */}
+        {/* 2. Sales Analytics Chart (Takes 2 columns) */}
         <div className="lg:col-span-2 bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
           <div className="flex justify-between items-center mb-6">
-            <h3 className="text-lg font-bold text-gray-800">Revenue Analytics</h3>
-            <select className="bg-gray-50 border border-gray-200 text-sm rounded-lg p-2 outline-none">
-                <option>This Week</option>
-                <option>This Month</option>
-            </select>
+            <div>
+              <h2 className="text-lg font-bold text-gray-800">Sales Analytics</h2>
+              <p className="text-xs text-gray-400">Revenue over time</p>
+            </div>
+            <TrendingUp className="text-teal-500" size={20} />
           </div>
           
-          <div className="h-72">
+          <div className="h-[300px] w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={stats.revenue_data}>
+              <AreaChart data={salesData}>
                 <defs>
-                  <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#0D9488" stopOpacity={0.2}/>
-                    <stop offset="95%" stopColor="#0D9488" stopOpacity={0}/>
+                  <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#0d9488" stopOpacity={0.1}/>
+                    <stop offset="95%" stopColor="#0d9488" stopOpacity={0}/>
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#9CA3AF', fontSize: 12}} dy={10} />
-                <YAxis axisLine={false} tickLine={false} tick={{fill: '#9CA3AF', fontSize: 12}} />
-                <Tooltip 
-                    contentStyle={{borderRadius: '10px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'}} 
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
+                <XAxis 
+                  dataKey="date" 
+                  tickFormatter={(str) => new Date(str).toLocaleDateString('en-US', { day: 'numeric', month: 'short' })} 
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{fontSize: 12, fill: '#9ca3af'}}
+                  dy={10}
                 />
-                <Area type="monotone" dataKey="value" stroke="#0D9488" strokeWidth={3} fillOpacity={1} fill="url(#colorValue)" />
+                <YAxis 
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{fontSize: 12, fill: '#9ca3af'}}
+                  tickFormatter={(val) => `$${val}`}
+                />
+                <Tooltip 
+                  contentStyle={{ backgroundColor: '#fff', borderRadius: '8px', border: '1px solid #f3f4f6', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                  itemStyle={{ color: '#111827', fontWeight: 'bold' }}
+                  formatter={(value) => [`$${value}`, 'Revenue']}
+                />
+                <Area 
+                  type="monotone" 
+                  dataKey="revenue" 
+                  stroke="#0d9488" 
+                  strokeWidth={2}
+                  fillOpacity={1} 
+                  fill="url(#colorRevenue)" 
+                />
               </AreaChart>
             </ResponsiveContainer>
           </div>
         </div>
 
-        {/* Side Stat (Daily Revenue) - يأخذ ثلث المساحة */}
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col justify-between">
-           <div>
-              <h3 className="text-lg font-bold text-gray-800 mb-2">Daily Sales</h3>
-              <p className="text-gray-400 text-sm">Total sales made today</p>
-              <h2 className="text-4xl font-bold text-gray-800 mt-6">${stats.daily_revenue}</h2>
-              <p className="text-green-500 text-sm font-medium mt-2 flex items-center">
-                  <HiArrowUp className="mr-1"/> +1.5% from yesterday
-              </p>
-           </div>
-           
-           {/* رسم بياني صغير (Bar Chart) */}
-           <div className="h-40 mt-6">
-             <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={[
-                    {name: 'A', v: 20}, {name: 'B', v: 40}, {name: 'C', v: 30}, 
-                    {name: 'D', v: 50}, {name: 'E', v: 25}, {name: 'F', v: 45}
-                ]}>
-                    <Bar dataKey="v" fill="#3B82F6" radius={[4, 4, 0, 0]} barSize={20} />
-                </BarChart>
-             </ResponsiveContainer>
-           </div>
+        {/* 4. Top Customers by Country (Takes 1 column) */}
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+          <h2 className="text-lg font-bold text-gray-800 mb-4">Top Regions</h2>
+          <div className="space-y-4">
+            {customers?.map((cust, idx) => (
+              <div key={idx} className="flex items-center justify-between p-3 rounded-xl bg-gray-50/50 hover:bg-gray-50 transition">
+                <div className="flex items-center gap-3">
+                  {/* Flag Image from code */}
+                  <img 
+                    src={`https://flagcdn.com/w40/${cust.code.toLowerCase()}.png`} 
+                    alt={cust.code} 
+                    className="w-8 h-6 object-cover rounded shadow-sm"
+                  />
+                  <div>
+                    <p className="text-sm font-semibold text-gray-800">{cust.name_en}</p>
+                    <p className="text-xs text-gray-400">Customer base</p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm font-bold text-gray-900">{cust.order_count}</p>
+                  <p className="text-[10px] text-gray-400">Orders</p>
+                </div>
+              </div>
+            ))}
+            {(!customers || customers.length === 0) && <p className="text-sm text-gray-400">No customer data yet.</p>}
+          </div>
         </div>
-
       </div>
 
-      {/* --- Section 3: Recent Orders Table --- */}
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-        <div className="p-6 border-b border-gray-100 flex justify-between items-center">
-            <h3 className="text-lg font-bold text-gray-800">Recent Orders</h3>
-            <button className="text-teal-600 text-sm font-bold hover:underline">View All</button>
-        </div>
-        <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm text-gray-500">
-                <thead className="bg-gray-50 text-gray-700 uppercase font-medium">
-                    <tr>
-                        <th className="px-6 py-4">Order ID</th>
-                        <th className="px-6 py-4">Date</th>
-                        <th className="px-6 py-4">Customer</th>
-                        <th className="px-6 py-4">Status</th>
-                        <th className="px-6 py-4 text-right">Total</th>
-                    </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                    {stats.recent_orders.map((order) => (
-                        <tr key={order.id} className="hover:bg-gray-50 transition-colors">
-                            <td className="px-6 py-4 font-bold text-gray-800">{order.id}</td>
-                            <td className="px-6 py-4">{order.date}</td>
-                            <td className="px-6 py-4">{order.customer}</td>
-                            <td className="px-6 py-4">
-                                <span className={`px-3 py-1 rounded-full text-xs font-bold ${getStatusColor(order.status)}`}>
-                                    {order.status}
-                                </span>
-                            </td>
-                            <td className="px-6 py-4 text-right font-bold text-gray-800">{order.total}</td>
-                        </tr>
-                    ))}
-                </tbody>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        {/* 5. Recent Orders */}
+        <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+          <div className="p-6 border-b border-gray-100 flex justify-between items-center">
+            <h2 className="text-lg font-bold text-gray-800">Recent Orders</h2>
+            <Link to="/orders" className="text-sm text-teal-600 font-medium hover:text-teal-700 flex items-center gap-1">
+              View All <ArrowRight size={14}/>
+            </Link>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left">
+              <thead className="bg-gray-50 text-xs font-semibold text-gray-500 uppercase">
+                <tr>
+                  <th className="px-6 py-4">Order ID</th>
+                  <th className="px-6 py-4">Customer</th>
+                  <th className="px-6 py-4">Date</th>
+                  <th className="px-6 py-4">Amount</th>
+                  <th className="px-6 py-4">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100 text-sm">
+                {recentOrders?.map((order) => (
+                  <tr key={order.id} className="hover:bg-gray-50/50">
+                    <td className="px-6 py-4 font-mono text-teal-600 font-medium">{order.order_number}</td>
+                    <td className="px-6 py-4 font-medium text-gray-900">{order.customer_name}</td>
+                    <td className="px-6 py-4 text-gray-500">{new Date(order.date).toLocaleDateString()}</td>
+                    <td className="px-6 py-4 font-semibold text-gray-900">{formatCurrency(order.amount)}</td>
+                    <td className="px-6 py-4"><StatusBadge status={order.status} /></td>
+                  </tr>
+                ))}
+              </tbody>
             </table>
+          </div>
         </div>
-      </div>
 
+        {/* 3. Top Selling Products */}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+          <div className="p-6 border-b border-gray-100">
+            <h2 className="text-lg font-bold text-gray-800">Top Products</h2>
+          </div>
+          <div className="divide-y divide-gray-100">
+            {topProducts?.map((item, idx) => (
+              <div key={idx} className="p-4 flex items-center gap-4 hover:bg-gray-50 transition">
+                <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center text-gray-400 font-bold text-xs overflow-hidden">
+                   {/* We don't have image in this specific response snippet for charts/products, using placeholder icon */}
+                   <ShoppingBag size={20} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-gray-900 truncate">{item.product.name_en}</p>
+                  <p className="text-xs text-gray-500">{item.product.sku}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm font-bold text-teal-600">{formatCurrency(item.total_revenue)}</p>
+                  <p className="text-[10px] text-gray-400">{item.total_sold} sold</p>
+                </div>
+              </div>
+            ))}
+            {(!topProducts || topProducts.length === 0) && <div className="p-6 text-sm text-gray-400 text-center">No sales data.</div>}
+          </div>
+        </div>
+
+      </div>
     </div>
   );
 }

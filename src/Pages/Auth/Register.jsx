@@ -179,6 +179,7 @@ export default function Register() {
   };
 
   const onSubmit = async (data) => {
+    console.log("Form Data:", data);
     const formData = new FormData();
     Object.keys(data).forEach((key) => {
       if ((key === 'logo' || key === 'commercial_registration') && data[key]?.length > 0) {
@@ -187,6 +188,7 @@ export default function Register() {
         formData.append(key, data[key]);
       }
     });
+    console.log(formData);
 
     const registerPromise = api.post("/seller/auth/register", formData, { headers: { "Content-Type": "multipart/form-data" } });
 
