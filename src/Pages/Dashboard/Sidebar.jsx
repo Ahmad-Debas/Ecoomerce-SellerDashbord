@@ -21,6 +21,7 @@ export default function Sidebar({ isOpen, closeSidebar }) {
     { path: "/orders", name: "Orders", icon: <HiShoppingCart size={22} /> },
     { path: "/inventory", name: "Inventory", icon: <MdInventory size={22} /> },
     { path: "/customers", name: "Customers", icon: <HiUsers size={22} /> },
+    { path: "/customers-two", name: "Customers Two", icon: <HiUsers size={22} /> },
     { path: "/promotions", name: "Promotions", icon: <HiTicket size={22} /> },
     { path: "/payments", name: "Payments", icon: <HiCreditCard size={22} /> },
     { path: "/profile", name: "Company Profile", icon: <HiDocumentReport size={22} /> },

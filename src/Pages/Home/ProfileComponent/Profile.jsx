@@ -1,14 +1,14 @@
 import React, { useState } from 'react';
-import { User, FileText, ShieldCheck, Lock } from 'lucide-react';
+import { User, FileText, ShieldCheck, Lock , Briefcase , Users} from 'lucide-react';
 import MainInformation from '../tabs/MainInformation.jsx';
 import KycInformation from '../tabs/KycInformation.jsx';
 import Conditions from '../tabs/Conditions.jsx';
 import Password from '../tabs/Password.jsx';
+import Roles from '../tabs/Roles.jsx';
+import Members from '../tabs/Members.jsx';
 
-// Placeholder Components
- 
-// const Conditions = () => <div>Conditions Content Coming Soon...</div>;
-// const PasswordUpdate = () => <div>Password Content Coming Soon...</div>;
+
+//  const Members = () => <div className="p-6 text-center">Members Component Coming Soon...</div>;
 
 export default function Profile() {
   const [activeTab, setActiveTab] = useState('main');
@@ -18,6 +18,8 @@ export default function Profile() {
     { id: 'kyc', label: 'KYC Information', icon: FileText, component: KycInformation },
     { id: 'conditions', label: 'Conditions', icon: ShieldCheck, component: Conditions },
     { id: 'password', label: 'Password', icon: Lock, component: Password },
+    { id: 'roles', label: 'Roles & Permissions', icon: Briefcase, component: Roles },
+    { id: 'members', label: 'Team Members', icon: Users, component: Members },
   ];
 
   // 🔹 نجيب التب الحالي

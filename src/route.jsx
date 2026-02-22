@@ -10,7 +10,6 @@ import SendCode from "./Pages/Auth/ResetPassword.jsx";
 import VerifyAccount from "./Pages/Auth/VerifyAccount.jsx";
 import Products from "./Pages/Home/Products.jsx";
 import Orders from "./Pages/Home/Orders.jsx";
-import OrdersTwo from "./Pages/Home/OrdersTwo.jsx"
 import ShowProduct from "./Pages/Home/ShowProduct.jsx";
 import CreateProduct from "./Pages/Home/CreateProduct.jsx"
 import ShowOrder from "./Pages/Home/ShowOrder.jsx";
@@ -26,6 +25,7 @@ import Payments from "./Pages/Home/Payments.jsx";
 import ShowInvoice from "./Pages/Home/ShowInvoice.jsx";
 import Profile from "./Pages/Home/ProfileComponent/Profile.jsx";
 import Coupon from "./Pages/Home/Coupon/Coupon.jsx";
+import CustomersTwo from "./Pages/Home/CustomersTwo.jsx";
 
 
 const ProtectedRoute = ({ children }) => {
@@ -131,6 +131,10 @@ const router = createBrowserRouter([
       {
         path: 'coupons',
         element: <Coupon />
+      },
+       {
+        path: 'customers-two',
+        element: <CustomersTwo />
       },
       
     ]
